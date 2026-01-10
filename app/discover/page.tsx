@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 import { createAdminClient } from '@/lib/supabase'
 import { Search } from 'lucide-react'
 import { CategoryScroll } from '@/components/CategoryScroll'
-import { CreateCommunityButton } from '@/components/community-creation/create-community-button'
 import Link from 'next/link'
 // Add these interfaces at the top of your file
 interface Tag {
