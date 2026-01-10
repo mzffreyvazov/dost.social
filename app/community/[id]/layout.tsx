@@ -29,9 +29,9 @@ interface CommunityTag {
 
 interface LayoutProps {
   children: React.ReactNode
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function CommunityLayout({ children, params }: LayoutProps) {
