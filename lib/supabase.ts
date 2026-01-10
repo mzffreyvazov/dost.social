@@ -1,8 +1,15 @@
 // lib/supabase.ts
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getUserId } from './_libaction';
 
-// For server components and API routes
+// ===========================================
+// ADMIN CLIENT (Server-side only, bypasses RLS)
+// ===========================================
+// Use this for: 
+// - Server actions that need elevated privileges
+// - Background jobs
+// - Admin operations
+// ===========================================
 export const createAdminClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -18,6 +25,44 @@ export const createAdminClient = () => {
     }
   });
 };
+
+// ===========================================
+// BROWSER CLIENT WITH CLERK AUTH (Respects RLS)
+// ===========================================
+// Use this for: 
+// - All client-side operations
+// - User-specific data fetching
+// - Any operation where RLS should apply
+// ===========================================
+export async function createClerkSupabaseClient(
+  getToken: () => Promise<string | null>
+): Promise<SupabaseClient> {
+  const token = await getToken();
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    }
+  );
+}
+
+// ===========================================
+// ANONYMOUS CLIENT (Public data only)
+// ===========================================
+// Use this for:
+// - Unauthenticated users viewing public data
+// - Public pages before sign-in
+// ===========================================
+export const supabaseAnon = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second

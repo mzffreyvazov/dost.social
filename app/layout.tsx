@@ -6,6 +6,8 @@ import Header from "@/components/headers";
 import UserProfileInitializer from '@/components/UserProfileInitializer';
 import { Analytics } from "@vercel/analytics/react"
 import { ThemeProvider } from "@/components/theme-provider";
+import { SupabaseProvider } from "@/providers/SupabaseProvider";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -38,14 +40,16 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <div className="flex flex-col min-h-screen">
-              <UserProfileInitializer />
-              <Header />
-              <main className="flex-grow pt-22">
-                {children}
-              </main>
-              <Analytics />
-            </div>
+            <SupabaseProvider>
+              <div className="flex flex-col min-h-screen">
+                <UserProfileInitializer />
+                <Header />
+                <main className="flex-grow pt-22">
+                  {children}
+                </main>
+                <Analytics />
+              </div>
+            </SupabaseProvider>
           </ThemeProvider>
         </body>
       </html>
