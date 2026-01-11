@@ -214,9 +214,9 @@ export function CommunityBasicInfo({
                   <div className="touch-auto pointer-events-auto">
                     <CommandEmpty>No city/state found.</CommandEmpty>
                     <CommandGroup>
-                      {cities.map((city) => (
+                      {cities.map((city, index) => (
                         <CommandItem
-                          key={city.value}
+                          key={`${city.value}-${index}`}
                           value={city.value}
                           onSelect={() => {
                             updateData({ city: city.value })
