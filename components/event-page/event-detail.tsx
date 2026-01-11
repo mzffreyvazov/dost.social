@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar, Clock, MapPin, Users, Heart, Share2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { EventLocationMap } from "./event-location-map"
 
 // Define a more specific user type to replace 'any'
 interface UserDetails {
@@ -32,6 +33,8 @@ interface EventDetailProps {
   eventCountry?: string
   eventLocationUrl?: string
   eventMaxAttendees?: number
+  eventLatitude?: number
+  eventLongitude?: number
   
   attendees: Array<{
     event_id: number
@@ -54,6 +57,8 @@ export async function EventDetail({
   eventStartTime,
   eventEndTime,
   eventAddress,
+  eventLatitude,
+  eventLongitude,
   attendees
 }: EventDetailProps) {
   // Still fetch event details if the props weren't provided
@@ -149,22 +154,11 @@ export async function EventDetail({
                 </div>
             </Card>
                       
-            <Card className="p-6">
-                <h2 className="text-xl font-bold mb-4">Location</h2>
-                <div className="rounded-md overflow-hidden">
-                    <img
-                    src="/placeholder-map.jpeg" // Fix image path to use web-friendly format
-                    alt="Event location map"
-                    className="w-full h-[200px] object-cover"
-                    />
-                </div>
-                <div className="mt-3 flex items-start gap-2">
-                    <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-muted-foreground">
-                    {address || "Address not provided for this event"}
-                    </p>
-                </div>
-            </Card>
+            <EventLocationMap 
+              address={address}
+              latitude={eventLatitude}
+              longitude={eventLongitude}
+            />
         </div>
             
         {/* Right Column */}
