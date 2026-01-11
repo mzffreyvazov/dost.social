@@ -17,9 +17,41 @@ interface Tag {
   name: string;
 }
 
-interface CommunityTag {
-  tag_id: string;
-  tags: Tag;
+interface CommunityWithTags {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  owner_id: number;
+  city: string | null;
+  country: string | null;
+  cover_image_url: string | null;
+  image_url?: string | null;
+  is_online: boolean;
+  member_count: number;
+  community_tags: {
+    tag_id: string;
+    tags: Tag;
+  }[];
+}
+
+interface EventData {
+  id: string;
+  title: string;
+  description: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+  is_online: boolean;
+  max_attendees: number;
+  address: string;
+  created_by: number;
+  created_at: string;
+  image_url?: string | null;
+  category?: string;
+  attendees_count?: number;
+  community_id?: number;
 }
 
 // Helper function to generate avatar fallback from community name
@@ -33,10 +65,9 @@ function getAvatarFallback(name: string): string {
 }
 
 export default function DiscoverPage() {
-  const [communities, setCommunities] = useState<any[]>([])
-  const [events, setEvents] = useState<any[]>([])
+  const [communities, setCommunities] = useState<CommunityWithTags[]>([])
+  const [events, setEvents] = useState<EventData[]>([])
   const [selectedCategory, setSelectedCategory] = useState('All')
-  const [isLoading, setIsLoading] = useState(true)
 
   const supabase = createBrowserClient()
 
@@ -55,8 +86,6 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     async function fetchData() {
-      setIsLoading(true)
-      
       // Fetch communities
       const { data: communitiesData } = await supabase
         .from('communities')
@@ -80,11 +109,10 @@ export default function DiscoverPage() {
       
       setCommunities(communitiesData || [])
       setEvents(eventsData || [])
-      setIsLoading(false)
     }
 
     fetchData()
-  }, [])
+  }, [supabase])
 
   // Show only first 6 communities
   const displayedCommunities = communities.slice(0, 6)
