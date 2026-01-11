@@ -301,55 +301,97 @@ export async function createCommunityTags(tagRelations: { community_id: number; 
 
 /**
  * Creates a community with its chat rooms and tags
+ * @param supabase - Authenticated Supabase client (get from useSupabase hook)
  */
 export async function createFullCommunity(
-  
+  supabase: SupabaseClient,
   communityData: CommunityCreateData,
   chatRooms: Array<{ name: string; type: 'text' | 'voice' | 'video' }>,
   tags: string[]
 ): Promise<{ success: boolean; communityId?: number; error?: SupabaseError | Error }> {
   try {
-    // 1. Create the community
-    const supabase = createBrowserClient();
-    const { data: community, error: communityError } = await createCommunity(communityData);
+    const now = new Date().toISOString();
+
+    // 1. Create community - USE THE AUTHENTICATED CLIENT
+    const { data: community, error: communityError } = await supabase
+      .from('communities')
+      .insert({
+        name: communityData.name,
+        description: communityData.description,
+        created_at: now,
+        updated_at: now,
+        owner_id: communityData.owner_id,
+        city: communityData.city || null,
+        country: communityData.country || null,
+        cover_image_url: communityData.cover_image_url || null,
+        is_online: communityData.is_online || false,
+        member_count: 1,
+      })
+      .select()
+      .single();
     
     if (communityError) throw communityError;
     if (!community) throw new Error('Failed to create community: No data returned');
     
     const communityId = community.id;
     
-    // 2. Create the chat rooms
-    const chatRoomsData = chatRooms.map(room => ({
-      community_id: communityId,
-      name: room.name,
-      type: room.type
-    }));
-    
-    const { error: chatRoomsError } = await createChatRooms(chatRoomsData);
-    
-    if (chatRoomsError) throw chatRoomsError;
-    
-    // 3. Create the tags
-    if (tags.length > 0) {
-      const { error: tagsError } = await createCommunityTags({
+    // 2. Create chat rooms - USE SAME CLIENT
+    if (chatRooms.length > 0) {
+      const chatRoomsData = chatRooms.map(room => ({
         community_id: communityId,
-        tag_names: tags
-      });
+        name: room.name,
+        type: room.type
+      }));
       
-      if (tagsError) throw tagsError;
+      const { error: chatRoomsError } = await supabase
+        .from('chat_rooms')
+        .insert(chatRoomsData);
+      
+      if (chatRoomsError) throw chatRoomsError;
     }
     
-    // 4. Create membership for the owner
+    // 3. Create tags - USE SAME CLIENT
+    if (tags.length > 0) {
+      const uniqueTags = [...new Set(tags)];
+      
+      for (const tagName of uniqueTags) {
+        // Check if tag exists
+        const { data: existingTag } = await supabase
+          .from('tags')
+          .select('id')
+          .eq('name', tagName)
+          .single();
+        
+        let tagId = existingTag?.id;
+        
+        // Create tag if it doesn't exist
+        if (!tagId) {
+          const { data: newTag } = await supabase
+            .from('tags')
+            .insert({ name: tagName })
+            .select('id')
+            .single();
+          tagId = newTag?.id;
+        }
+        
+        // Link tag to community
+        if (tagId) {
+          await supabase
+            .from('community_tags')
+            .insert({ community_id: communityId, tag_id: tagId });
+        }
+      }
+    }
+    
+    // 4. Create owner membership - USE SAME CLIENT
     const { error: membershipError } = await supabase
       .from('community_members')
-      .insert([
-        {
-          community_id: communityId,
-          user_id: communityData.owner_id,
-          role: 'owner',
-          joined_at: new Date().toISOString()
-        }
-      ]);
+      .insert({
+        community_id: communityId,
+        user_id: communityData.owner_id,
+        role: 'owner',
+        joined_at: new Date().toISOString()
+      });
     
     if (membershipError) throw membershipError;
     

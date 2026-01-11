@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
-import { createBrowserClient, getCurrentUserId } from "@/lib/supabase"
-import { useAuth } from "@clerk/nextjs"
+import { getCurrentUserId } from "@/lib/supabase"
+import { useSupabase } from "@/hooks/useSupabase"
 import { toast } from "sonner"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { cn } from "@/lib/utils"
@@ -89,7 +89,7 @@ interface CreateEventDialogProps {
 
 export function CreateEventDialog({ communityId, onEventCreated }: CreateEventDialogProps) {
   const router = useRouter()
-  const { userId } = useAuth() // Keep Clerk's userId for checking login status
+  const { getSupabaseClient, isSignedIn } = useSupabase()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<number | null>(null) // Supabase integer ID
@@ -174,12 +174,12 @@ export function CreateEventDialog({ communityId, onEventCreated }: CreateEventDi
         toast.error("Error fetching Supabase user ID.")
       }
     }
-    if (userId) { // Only fetch if Clerk user ID exists
+    if (isSignedIn) { // Only fetch if user is signed in
       fetchUserId()
     } else {
       setCurrentUserId(null)
     }
-  }, [userId]) // Depend on Clerk's userId
+  }, [isSignedIn]) // Depend on isSignedIn from useSupabase
 
   // Add useEffect for fetching countries
   useEffect(() => {
@@ -367,7 +367,9 @@ export function CreateEventDialog({ communityId, onEventCreated }: CreateEventDi
     }
 
     setIsLoading(true)
-    const supabase = createBrowserClient()
+    
+    // Get authenticated Supabase client
+    const supabase = await getSupabaseClient()
 
     const eventData = {
       title: newEvent.title.trim(),

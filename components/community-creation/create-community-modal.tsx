@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { createFullCommunity, getCurrentUserId } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useSupabase } from "@/hooks/useSupabase"
 
 // Add these interfaces at the top of the file
 interface LocationItem {
@@ -89,6 +90,7 @@ export function CreateCommunityModal({ isOpen, onClose }: CreateCommunityModalPr
   const [activeTab, setActiveTab] = useState("basic-info")
   const [communityData, setCommunityData] = useState<CommunityData>(defaultCommunityData)
   const router = useRouter()
+  const { getSupabaseClient } = useSupabase()
 
   // Add location data states
   const [countries, setCountries] = useState<LocationItem[]>([])
@@ -274,8 +276,12 @@ export function CreateCommunityModal({ isOpen, onClose }: CreateCommunityModalPr
       
       const cityName = communityData.city || ""
 
+      // Get authenticated Supabase client
+      const supabase = await getSupabaseClient()
+
       // Save the community data
       const { success } = await createFullCommunity(
+        supabase,
         {
           name: communityData.name,
           description: communityData.description,
