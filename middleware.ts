@@ -40,6 +40,16 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
     return NextResponse.redirect(new URL("/discover", req.url));
   }
 
+  // CASE 5: Signed-in user visiting landing page
+  if (userId && isLandingPageRoute(req)) {
+    // If onboarding not complete, redirect to onboarding
+    if (!onboardingComplete) {
+      return NextResponse.redirect(new URL("/onboarding", req.url));
+    }
+    // If onboarding complete, redirect to discover
+    return NextResponse.redirect(new URL("/discover", req.url));
+  }
+
   // Let the request continue for all other cases
   return NextResponse.next();
 });
