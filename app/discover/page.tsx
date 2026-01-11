@@ -142,11 +142,11 @@ export default function DiscoverPage() {
       <main className="container mx-auto px-4 py-12">
 
         {/* --- HEADER WITH SORT AND CREATE --- */}
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl font-bold text-foreground">Popular Communities</h2>
+        <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:justify-between sm:items-center">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Popular Communities</h2>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">Sort by:</span>
+              <span className="text-muted-foreground text-sm whitespace-nowrap">Sort by:</span>
               <select className="border rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring/50 bg-background text-foreground">
                 <option>Recommended</option>
                 <option>Newest</option>
@@ -159,7 +159,7 @@ export default function DiscoverPage() {
         </div>
 
         {/* --- COMMUNITY CARDS --- */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-md sm:max-w-none mx-auto">
           {displayedCommunities?.map((community) => {
             // Get the first tag as the category badge
             const primaryTag = community.community_tags?.[0]?.tags?.name || 'Community';
@@ -192,12 +192,10 @@ export default function DiscoverPage() {
                   </div>
                 </div>
                 
-                <CardContent className="pt-5">
-                  <div className="mb-2">
-                    <h3 className="text-lg font-medium text-foreground line-clamp-1">{community.name}</h3>
-                  </div>
+                <CardContent className="p-4">
+                  <h3 className="text-lg font-medium text-foreground line-clamp-1 mb-2">{community.name}</h3>
                   
-                  <p className="text-muted-foreground text-sm line-clamp-2 mb-3">
+                  <p className="text-muted-foreground text-sm line-clamp-2 mb-4">
                     {community.description}
                   </p>
                   
@@ -213,7 +211,7 @@ export default function DiscoverPage() {
                   </div>
                 </CardContent>
                 
-                <CardFooter className="border-t pt-3 pb-4">
+                <CardFooter className="px-4 pb-4 pt-0">
                   <Button 
                     variant="outline" 
                     className="w-full text-sm font-normal"
