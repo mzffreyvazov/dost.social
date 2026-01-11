@@ -31,15 +31,20 @@ import {
 
 // Define types for country and state data
 interface CountryData {
-  cca2: string;
-  name: {
-    common: string;
-  };
+  iso2: string;
+  name: string;
+  iso3: string;
+  phonecode: string;
+  capital: string;
+  currency: string;
+  native: string;
+  emoji: string;
 }
 
 interface StateData {
+  id: number;
   name: string;
-  state_code: string;
+  state_code?: string;
 }
 
 interface CountryOption {
@@ -49,6 +54,7 @@ interface CountryOption {
 }
 
 interface CityOption {
+  id?: number | string;
   value: string;
   label: string;
 }
@@ -180,15 +186,24 @@ export function CreateEventDialog({ communityId, onEventCreated }: CreateEventDi
     const fetchCountries = async () => {
       setLoading((prevState) => ({ ...prevState, countries: true }))
       try {
-        const response = await fetch("https://restcountries.com/v3.1/all")
+        const apiKey = process.env.NEXT_PUBLIC_COUNTRY_STATE_CITY_API_KEY
+        if (!apiKey) {
+          throw new Error("API key not configured")
+        }
+
+        const response = await fetch("https://api.countrystatecity.in/v1/countries", {
+          headers: {
+            "X-CSCAPI-KEY": apiKey
+          }
+        })
         if (!response.ok) throw new Error("Failed to fetch countries")
         const data = await response.json()
 
         const formattedCountries = data
           .map((country: CountryData) => ({
-            value: country.cca2,
-            label: country.name.common,
-            fullName: country.name.common,
+            value: country.iso2,
+            label: country.name,
+            fullName: country.name,
           }))
           .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label))
 
@@ -213,30 +228,34 @@ export function CreateEventDialog({ communityId, onEventCreated }: CreateEventDi
 
       setLoading((prevState) => ({ ...prevState, cities: true }))
       try {
+        const apiKey = process.env.NEXT_PUBLIC_COUNTRY_STATE_CITY_API_KEY
+        if (!apiKey) {
+          throw new Error("API key not configured")
+        }
+
         const selectedCountry = countries.find((c) => c.value === newEvent.country)
         if (!selectedCountry) {
           throw new Error("Country not found")
         }
 
-        const response = await fetch("https://countriesnow.space/api/v0.1/countries/states", {
-          method: "POST",
+        const response = await fetch(`https://api.countrystatecity.in/v1/countries/${selectedCountry.value}/cities`, {
           headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ country: selectedCountry.fullName }),
+            "X-CSCAPI-KEY": apiKey
+          }
         })
 
-        if (!response.ok) throw new Error("Failed to fetch states")
+        if (!response.ok) throw new Error("Failed to fetch cities")
         const data = await response.json()
 
-        if (!data.data?.states) {
-          throw new Error("No states data found")
+        if (!Array.isArray(data)) {
+          throw new Error("No cities data found")
         }
 
-        const formattedCities = data.data.states
-          .map((state: StateData) => ({
-            value: state.name,
-            label: state.name,
+        const formattedCities = data
+          .map((city: StateData) => ({
+            id: city.id,
+            value: city.name,
+            label: city.name,
           }))
           .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label))
 
@@ -620,7 +639,7 @@ export function CreateEventDialog({ communityId, onEventCreated }: CreateEventDi
                       <CommandGroup>
                         {cities.map((city) => (
                           <CommandItem
-                            key={city.value}
+                            key={city.id || city.value}
                             value={city.label}
                             onSelect={() => {
                               updateEventData("city", city.value);

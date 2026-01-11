@@ -25,17 +25,23 @@ import {
 
 // Define interfaces for our data types
 interface LocationItem {
+  id?: number | string;
   value: string;
   label: string;
   fullName?: string;
 }
 interface CountryData {
-  cca2: string;
-  name: {
-    common: string;
-  };
+  iso2: string;
+  name: string;
+  iso3: string;
+  phonecode: string;
+  capital: string;
+  currency: string;
+  native: string;
+  emoji: string;
 }
 interface StateData {
+  id: number;
   name: string;
 }
 interface LocationData {
@@ -108,16 +114,25 @@ React.useEffect(() => {
   const fetchCountries = async () => {
     setLoading((prevState) => ({ ...prevState, countries: true }));
     try {
-      const response = await fetch('https://restcountries.com/v3.1/all');
+      const apiKey = process.env.NEXT_PUBLIC_COUNTRY_STATE_CITY_API_KEY;
+      if (!apiKey) {
+        throw new Error('API key not configured');
+      }
+
+      const response = await fetch('https://api.countrystatecity.in/v1/countries', {
+        headers: {
+          'X-CSCAPI-KEY': apiKey
+        }
+      });
       if (!response.ok) throw new Error('Failed to fetch countries');
       const data = await response.json();
 
       // Store country name alongside the code
       const formattedCountries = data
         .map((country: CountryData) => ({
-          value: country.cca2,
-          label: country.name.common,
-          fullName: country.name.common // Store the full name
+          value: country.iso2,
+          label: country.name,
+          fullName: country.name // Store the full name
         }))
         .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label));
 
@@ -143,37 +158,41 @@ React.useEffect(() => {
     
     setLoading((prevState) => ({ ...prevState, cities: true }));
     try {
-      // Find the selected country's full name
+      const apiKey = process.env.NEXT_PUBLIC_COUNTRY_STATE_CITY_API_KEY;
+      if (!apiKey) {
+        throw new Error('API key not configured');
+      }
+
+      // Find the selected country's ISO2 code
       const selectedCountry = countries.find(c => c.value === locationData.country);
       if (!selectedCountry) {
         throw new Error('Country not found');
       }
 
       const response = await fetch(
-        'https://countriesnow.space/api/v0.1/countries/states',
+        `https://api.countrystatecity.in/v1/countries/${selectedCountry.value}/cities`,
         {
-          method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ country: selectedCountry.fullName }),
+            'X-CSCAPI-KEY': apiKey
+          }
         }
       );
 
-      if (!response.ok) throw new Error('Failed to fetch states');
+      if (!response.ok) throw new Error('Failed to fetch cities');
       const data = await response.json();
 
       // Debug response
       console.log('API response:', data);
 
-      if (!data.data || !data.data.states || !Array.isArray(data.data.states)) {
-        throw new Error('No states data found');
+      if (!Array.isArray(data)) {
+        throw new Error('No cities data found');
       }
 
-      const formattedCities = data.data.states
-        .map((state: StateData) => ({
-          value: state.name,
-          label: state.name,
+      const formattedCities = data
+        .map((city: StateData) => ({
+          id: city.id,
+          value: city.name,
+          label: city.name,
         }))
         .sort((a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label));
 
@@ -341,7 +360,7 @@ const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                   <CommandGroupWithTypes>
                     {cities.map((city) => (
                       <CommandItemWithTypes
-                        key={city.value}
+                        key={city.id || city.value}
                         value={city.value}
                         onSelect={(currentValue: string) => {
                           setLocationData({
