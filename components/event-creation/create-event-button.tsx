@@ -9,10 +9,10 @@ export function CreateEventButton() {
       onClick={() => document.getElementById('create-event-dialog')?.click()}
       variant="default"
       size="sm"
-      className="gap-2 cursor-pointer"
+      className="cursor-pointer"
     >
-      <Plus className="h-4 w-4" />
-      Create Event
+      <Plus className="h-4 w-4 flex-shrink-0" />
+      <span className="leading-none">Create Event</span>
     </Button>
   )
 }
