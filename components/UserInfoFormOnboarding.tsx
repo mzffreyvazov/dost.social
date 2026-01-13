@@ -53,17 +53,74 @@ export function UserInfoForm({
     setSelectedInterests((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
   }
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress image to reduce file size for mobile uploads
+  const compressImage = async (file: File, maxWidth = 800, quality = 0.8): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let { width, height } = img
+        
+        // Calculate new dimensions while maintaining aspect ratio
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width
+          width = maxWidth
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(file) // Return original if canvas not supported
+          return
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height)
+        
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              })
+              resolve(compressedFile)
+            } else {
+              resolve(file)
+            }
+          },
+          'image/jpeg',
+          quality
+        )
+      }
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
-      setProfilePhoto(file)
+      
+      // Compress image if it's larger than 1MB
+      let processedFile = file
+      if (file.size > 1024 * 1024) {
+        try {
+          processedFile = await compressImage(file, 800, 0.8)
+        } catch (error) {
+          console.error('Image compression failed, using original:', error)
+        }
+      }
+      
+      setProfilePhoto(processedFile)
 
       // Create preview URL
       const reader = new FileReader()
       reader.onload = (event) => {
         setPhotoPreview(event.target?.result as string)
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(processedFile)
     }
   }
 

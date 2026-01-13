@@ -19,13 +19,21 @@ export async function completeOnboarding(formData: FormData) {
     // Upload profile image to Clerk if provided
     if (profilePhoto && profilePhoto.size > 0) {
       try {
-        // Convert File to ArrayBuffer then to Blob for mobile compatibility
-        // Mobile browsers may have issues with File objects in Server Actions
+        // Convert File to ArrayBuffer then create a new File object for mobile compatibility
+        // Mobile browsers may serialize File objects incorrectly through Server Actions
         const arrayBuffer = await profilePhoto.arrayBuffer();
-        const blob = new Blob([arrayBuffer], { type: profilePhoto.type || 'image/jpeg' });
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // Determine file extension from MIME type
+        const mimeType = profilePhoto.type || 'image/jpeg';
+        const extension = mimeType.split('/')[1] || 'jpg';
+        const fileName = profilePhoto.name || `profile-image.${extension}`;
+        
+        // Create a new File object with proper properties
+        const file = new File([uint8Array], fileName, { type: mimeType });
         
         await client.users.updateUserProfileImage(userId, {
-          file: blob
+          file: file
         });
       } catch (imageError) {
         console.error('Failed to upload profile image to Clerk:', imageError);
