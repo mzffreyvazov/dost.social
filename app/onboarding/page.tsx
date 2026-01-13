@@ -20,16 +20,23 @@ export default function OnboardingPage() {
       }
 
       const res = await completeOnboarding(formData);
+
+      if (!res) {
+        setError('Request failed. Please try again.');
+        return;
+      }
       
       if (res?.message) {
         router.push('/onboarding/location');
+        return;
       }
       
       if (res?.error) {
         setError(res?.error);
       }
-    } catch {
-      setError('An unexpected error occurred');
+    } catch (err: unknown) {
+      console.error('Onboarding submit failed:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     }
   };
 

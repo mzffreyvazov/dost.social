@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { fetchInterests } from "@/lib/supabase"
 import { Loader2 } from "lucide-react"
-import { useRouter } from "next/navigation"
 
 interface InterestTag {
   id: string
@@ -33,7 +32,6 @@ export function UserInfoForm({
   initialInterests = [],
   ...props
 }: UserInfoFormProps) {
-  const router = useRouter()
   const [interests, setInterests] = React.useState<InterestTag[]>([])
   const [bio, setBio] = React.useState(initialBio)
   const [selectedInterests, setSelectedInterests] = React.useState<string[]>(initialInterests)
@@ -81,24 +79,14 @@ const handleSave = async () => {
     if (onSave) {
       setIsLoading(true)
       try {
-        const result = await onSave({
+        await onSave({
           bio,
           interests: selectedInterests,
           profilePhoto: profilePhoto || undefined,
         })
-        
-        // If successful, let the loading state continue until navigation
-        if (result?.success) {
-          await new Promise(() => {
-            router.push('/onboarding/location')
-          }) // or whatever your next route is
-          return // Exit early to maintain loading state
-        }
-        
-        // Only set loading to false if there was an error or no success
-        setIsLoading(false)
       } catch (error) {
         console.error('Error saving user info:', error)
+      } finally {
         setIsLoading(false)
       }
     }
@@ -157,6 +145,7 @@ const handleSave = async () => {
                 <button
                 key={interest.id}
                 onClick={() => toggleInterest(interest.id)}
+                type="button"
                 className={cn(
                     "px-4 py-2 text-sm transition-colors border rounded-full shadow-sm cursor-pointer",
                     selectedInterests.includes(interest.id)
@@ -177,6 +166,7 @@ const handleSave = async () => {
           onClick={handleSave} 
           className="w-full cursor-pointer"
           disabled={isLoading}
+          type="button"
         >
           {isLoading ? (
             <>

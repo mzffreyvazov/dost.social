@@ -1,6 +1,7 @@
 'use server'
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase";
 // app/onboarding/_actions.ts
 export async function completeOnboarding(formData: FormData) {
@@ -41,7 +42,13 @@ export async function completeOnboarding(formData: FormData) {
     });
 
     // Update Supabase profile
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/user/profile`, {
+    const requestHeaders = await headers();
+    const origin = requestHeaders.get("origin") || process.env.NEXT_PUBLIC_APP_URL;
+    if (!origin) {
+      throw new Error("Missing app origin (set NEXT_PUBLIC_APP_URL in production)");
+    }
+
+    const response = await fetch(`${origin}/api/user/profile`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -51,7 +58,8 @@ export async function completeOnboarding(formData: FormData) {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to update bio in Supabase');
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Failed to update bio in Supabase (${response.status})${errorText ? `: ${errorText}` : ""}`);
     }
 
     // Update user tags in Supabase
