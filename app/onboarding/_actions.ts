@@ -1,12 +1,11 @@
 'use server'
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
-import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase";
 // app/onboarding/_actions.ts
 export async function completeOnboarding(formData: FormData) {
   try {
-    const { userId, getToken } = await auth();
+    const { userId } = await auth();
     if (!userId) {
       return { error: "Unauthorized" };
     }
@@ -16,7 +15,6 @@ export async function completeOnboarding(formData: FormData) {
     const interests = interestsString ? JSON.parse(interestsString) : [];
     const profilePhoto = formData.get('profilePhoto') as File | null;
     const client = await clerkClient();
-    const token = await getToken();
     
     // Upload profile image to Clerk if provided
     if (profilePhoto && profilePhoto.size > 0) {
@@ -41,47 +39,79 @@ export async function completeOnboarding(formData: FormData) {
       }
     });
 
-    // Update Supabase profile
-    const requestHeaders = await headers();
-    const origin = requestHeaders.get("origin") || process.env.NEXT_PUBLIC_APP_URL;
-    if (!origin) {
-      throw new Error("Missing app origin (set NEXT_PUBLIC_APP_URL in production)");
-    }
-
-    const response = await fetch(`${origin}/api/user/profile`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ bio }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(`Failed to update bio in Supabase (${response.status})${errorText ? `: ${errorText}` : ""}`);
-    }
-
-    // Update user tags in Supabase
+    // Ensure user exists in Supabase and update bio.
+    // This avoids relying on a client-only initializer and avoids internal API calls
+    // that may fail due to missing cookies.
     const supabase = createAdminClient();
-    const { data: userData, error: userError } = await supabase
+    const now = new Date().toISOString();
+
+    const { data: existingUser, error: existingUserError } = await supabase
       .from('users')
-      .select('useri_id')  // Using useri_id as specified
+      .select('useri_id')
       .eq('clerk_user_id', userId)
-      .single();
-    
-    if (userError || !userData) {
-      console.error('User lookup error:', userError);
-      throw new Error('Failed to find user in database');
+      .maybeSingle();
+
+    if (existingUserError) {
+      console.error('User lookup error:', existingUserError);
+      throw new Error('Failed to look up user in database');
     }
-    
-    const numericUserId = userData.useri_id;
+
+    let numericUserId: number;
+    if (!existingUser) {
+      const { data: insertedUser, error: insertError } = await supabase
+        .from('users')
+        .insert({
+          clerk_user_id: userId,
+          bio: bio || null,
+          created_at: now,
+          updated_at: now,
+        })
+        .select('useri_id')
+        .single();
+
+      if (insertError || !insertedUser) {
+        console.error('User insert error:', insertError);
+        throw new Error('Failed to create user in database');
+      }
+
+      numericUserId = insertedUser.useri_id;
+    } else {
+      numericUserId = existingUser.useri_id;
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          bio: bio || null,
+          updated_at: now,
+        })
+        .eq('useri_id', numericUserId);
+
+      if (updateError) {
+        console.error('User update error:', updateError);
+        throw new Error('Failed to update user in database');
+      }
+    }
     
     // Then insert new user tags
-    if (interests && interests.length > 0) {
-      const userTags = interests.map((tagId: string) => ({
+    // Make this idempotent so retries don't fail on unique constraints.
+    const { error: deleteTagsError } = await supabase
+      .from('user_tags')
+      .delete()
+      .eq('user_id', numericUserId);
+
+    if (deleteTagsError) {
+      console.error('Tag delete error:', deleteTagsError);
+      throw new Error('Failed to reset user tags');
+    }
+
+    const normalizedInterestIds = (Array.isArray(interests) ? interests : [])
+      .map((tagId: string) => Number(tagId))
+      .filter((tagId: number) => Number.isFinite(tagId));
+
+    if (normalizedInterestIds.length > 0) {
+      const userTags = normalizedInterestIds.map((tagId: number) => ({
         user_id: numericUserId,
-        tag_id: parseInt(tagId)
+        tag_id: tagId,
       }));
 
       console.log('Inserting tags:', userTags);
@@ -109,7 +139,7 @@ export async function completeOnboarding(formData: FormData) {
 // app/onboarding/_actions.ts - completeLocationOnboarding function
 export async function completeLocationOnboarding(formData: FormData) {
     try {
-      const { userId, getToken } = await auth();
+      const { userId } = await auth();
       if (!userId) {
         return { error: "Unauthorized" };
       }
@@ -126,7 +156,6 @@ export async function completeLocationOnboarding(formData: FormData) {
       }
   
       const client = await clerkClient();
-      const token = await getToken();
   
       // Update user metadata in Clerk - now marking the ENTIRE onboarding as complete
       await client.users.updateUser(userId, {
@@ -138,30 +167,30 @@ export async function completeLocationOnboarding(formData: FormData) {
           }
         }
       });
-  
-      // Update Supabase using the API route
-      const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/user/location`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ 
-          city, 
-          country, 
-          latitude: latitude || null, 
-          longitude: longitude || null 
-        }),
-      });
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update location in Supabase');
+
+      // Update Supabase directly with admin client (no internal API calls).
+      const supabase = createAdminClient();
+      const now = new Date().toISOString();
+
+      const { error: locationError } = await supabase
+        .from('users')
+        .update({
+          city,
+          country,
+          location_latitude: latitude || null,
+          location_longitude: longitude || null,
+          updated_at: now,
+        })
+        .eq('clerk_user_id', userId);
+
+      if (locationError) {
+        console.error('Error updating user location:', locationError);
+        throw new Error(locationError.message);
       }
   
       return { message: "Location updated successfully" };
     } catch (error) {
       console.error("Location update error:", error);
-      return { error: "Failed to update location" };
+      return { error: error instanceof Error ? error.message : "Failed to update location" };
     }
   }
