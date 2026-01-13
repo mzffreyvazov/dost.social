@@ -13,8 +13,21 @@ export async function completeOnboarding(formData: FormData) {
     const bio = formData.get('bio') as string;
     const interestsString = formData.get('interests') as string;
     const interests = interestsString ? JSON.parse(interestsString) : [];
+    const profilePhoto = formData.get('profilePhoto') as File | null;
     const client = await clerkClient();
     const token = await getToken();
+    
+    // Upload profile image to Clerk if provided
+    if (profilePhoto && profilePhoto.size > 0) {
+      try {
+        await client.users.updateUserProfileImage(userId, {
+          file: profilePhoto
+        });
+      } catch (imageError) {
+        console.error('Failed to upload profile image to Clerk:', imageError);
+        // Don't fail the entire onboarding if image upload fails
+      }
+    }
     
     // Update user metadata with bio and interests in Clerk
     await client.users.updateUser(userId, {
