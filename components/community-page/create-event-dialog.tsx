@@ -186,16 +186,7 @@ export function CreateEventDialog({ communityId, onEventCreated }: CreateEventDi
     const fetchCountries = async () => {
       setLoading((prevState) => ({ ...prevState, countries: true }))
       try {
-        const apiKey = process.env.NEXT_PUBLIC_COUNTRY_STATE_CITY_API_KEY
-        if (!apiKey) {
-          throw new Error("API key not configured")
-        }
-
-        const response = await fetch("https://api.countrystatecity.in/v1/countries", {
-          headers: {
-            "X-CSCAPI-KEY": apiKey
-          }
-        })
+        const response = await fetch("/api/locations/countries")
         if (!response.ok) throw new Error("Failed to fetch countries")
         const data = await response.json()
 
@@ -228,21 +219,12 @@ export function CreateEventDialog({ communityId, onEventCreated }: CreateEventDi
 
       setLoading((prevState) => ({ ...prevState, cities: true }))
       try {
-        const apiKey = process.env.NEXT_PUBLIC_COUNTRY_STATE_CITY_API_KEY
-        if (!apiKey) {
-          throw new Error("API key not configured")
-        }
-
         const selectedCountry = countries.find((c) => c.value === newEvent.country)
         if (!selectedCountry) {
           throw new Error("Country not found")
         }
 
-        const response = await fetch(`https://api.countrystatecity.in/v1/countries/${selectedCountry.value}/cities`, {
-          headers: {
-            "X-CSCAPI-KEY": apiKey
-          }
-        })
+        const response = await fetch(`/api/locations/cities/${selectedCountry.value}`)
 
         if (!response.ok) throw new Error("Failed to fetch cities")
         const data = await response.json()
